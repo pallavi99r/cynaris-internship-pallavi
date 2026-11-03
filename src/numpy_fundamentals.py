@@ -73,7 +73,7 @@ def demonstrate_statistics() -> None:
         return
 
     mean_values = np.mean(data, axis=0)
-    std_values = np.std(data, axis=0)
+    std_values = np.std(data, axis=0, ddof=1)
     correlation_matrix = np.corrcoef(data, rowvar=False)
 
     print(f"\nMean:\n{mean_values}")
