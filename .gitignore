@@ -9,3 +9,6 @@ __pycache__/
 # Virtual environments
 .venv/
 venv/
+# Generated processed datasets
+1d2_pandas/data/processed/*.csv
+1d2_pandas/data/processed/*.parquet

@@ -33,8 +33,11 @@ def main():
 
     preview(df, n=10)
 
+    
     # 2. DATA CLEANING
     print("\n========== DATA CLEANING ==========")
+
+    rows_before = len(df)
 
     # Remove unwanted spaces from text columns.
     text_columns = [
@@ -56,7 +59,7 @@ def main():
         df["Production"], errors="coerce"
     )
 
-    # Remove missing values and duplicate records.
+    # Remove records with missing or invalid required values.
     df = df.dropna(
         subset=[
             "State_Name",
@@ -67,19 +70,60 @@ def main():
             "Area",
             "Production",
         ]
-    ).drop_duplicates()
+    ).copy()
 
-    # Keep records with positive area and non-negative production.
-    df = df.loc[
-        (df["Area"] > 0) &
-        (df["Production"] >= 0)
-    ].copy()
+    rows_after_missing = len(df)
+
+    # Remove duplicate records.
+    duplicates = df.duplicated().sum()
+    df = df.drop_duplicates().copy()
+
+    # Keep physically valid records.
+    # Zero area is allowed only when production is also zero.
+    valid_mask = (
+        ((df["Area"] > 0) & (df["Production"] >= 0))
+        |
+        ((df["Area"] == 0) & (df["Production"] == 0))
+    )
+
+    invalid_records = (~valid_mask).sum()
+    df = df.loc[valid_mask].copy()
+
+    # Calculate crop yield (production per hectare).
+    df["Yield"] = (
+        df["Production"] /
+        df["Area"].replace(0, float("nan"))
+    )
+
+    # Detect unusually high yields using the IQR method.
+    q1 = df["Yield"].quantile(0.25)
+    q3 = df["Yield"].quantile(0.75)
+
+    iqr = q3 - q1
+    upper_limit = q3 + (3 * iqr)
+
+    # Flag outliers without deleting them.
+    df["Outlier_Flag"] = (
+        df["Yield"] > upper_limit
+    ).fillna(False)
+
+    # Display cleaning statistics.
+    print("Original rows:", rows_before)
+    print("Rows removed due to missing values:",
+          rows_before - rows_after_missing)
+    print("Duplicate rows removed:", duplicates)
+    print("Invalid records removed:", invalid_records)
+    print("Final cleaned rows:", len(df))
+    print("Yield outliers flagged:", df["Outlier_Flag"].sum())
 
     print("\nCleaned dataset shape:")
     print(df.shape)
 
     print("\nCleaned data types:")
     print(df.dtypes)
+
+    print("\nCleaned dataset preview:")
+    print(df.head(10))
 
     # 3. FILTER OPERATION
     print("\n========== FILTER ==========")
